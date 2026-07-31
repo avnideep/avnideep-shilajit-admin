@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rewards — Avnideep Admin</title>
+<link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/api.js"></script>
+<script src="/js/mobile-menu.js"></script>
+<script src="/js/pwa.js"></script>
+
+<style>
+@media (max-width: 640px) {
+  #rewardsTable thead { display: none; }
+  #rewardsTable tbody tr { display: block; margin-bottom: 12px; }
+  #rewardsTable tbody tr td { display: block; padding: 4px 12px; border: none; }
+  #rewardsTable tbody tr td:first-child {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--primary);
+  }
+}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Avnideep</h2>
+      <small>Admin Panel</small>
+    </div>
+    <div class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a href="rewards.html" class="active"><span class="icon">🏆</span><span>Rewards</span></a>
+      <a href="orders.html"><span class="icon">📋</span><span>Orders</span></a>
+      <a href="analytics.html"><span class="icon">📈</span><span>Analytics</span></a>
+      <a href="payment-settings.html"><span class="icon">💳</span><span>Payment</span></a>
+      <a href="seo.html"><span class="icon">🔍</span><span>SEO</span></a>
+      <a href="seo.html"><span class="icon">🔍</span><span>SEO</span></a>
+    </div>
+    <button id="installAppBtn" onclick="installApp()" style="display:none;margin:4px 12px 8px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-height:44px;align-items:center;gap:8px;justify-content:center;" class="install-app-btn">📲 Install App</button>
+        <div class="logout-btn">
+      <button onclick="handleLogout()">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div>
+          <h1>Rewards</h1>
+        <p>All reward wheel entries</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="loadRewards()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <input type="text" class="form-control search-input" id="searchInput" placeholder="🔍 Search by name, phone, reward ID..." onkeydown="if(event.key==='Enter')loadRewards()">
+      <select class="form-control" id="statusFilter" onchange="loadRewards()">
+        <option value="all">📋 All Status</option>
+        <option value="claimed">🏆 Claimed</option>
+        <option value="pending_confirmation">⏳ Pending Confirmation</option>
+        <option value="delivered">📦 Delivered</option>
+        <option value="paid_out">💰 Paid Out</option>
+        <option value="expired">❌ Expired</option>
+      </select>
+      <input type="date" class="form-control" id="fromDate" onchange="loadRewards()">
+      <span style="color:var(--text2);font-size:13px">to</span>
+      <input type="date" class="form-control" id="toDate" onchange="loadRewards()">
+    </div>
+
+    <div class="stats-grid" id="statsGrid" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-icon gold">🏆</div><div class="stat-body"><h3 id="statTotalRewards">—</h3><p>Total Rewards</p></div></div>
+      <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-body"><h3 id="statTotalPaid">—</h3><p>Paid Out (this page)</p></div></div>
+      <div class="stat-card"><div class="stat-icon blue">💵</div><div class="stat-body"><h3 id="statTotalAmount">—</h3><p>Amount (this page)</p></div></div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table id="rewardsTable">
+          <thead>
+            <tr>
+              <th>Reward ID</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Amount</th>
+              <th>Label</th>
+              <th>Status</th>
+              <th>Order ID</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="rewardsBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+
+window.handleLogout = logout;
+
+let currentPage = 1;
+let totalPages = 1;
+let currentRewardId = null;
+
+async function loadRewards(page = 1) {
+  currentPage = page;
+  const search = document.getElementById('searchInput').value;
+  const status = document.getElementById('statusFilter').value;
+  const from = document.getElementById('fromDate').value;
+  const to = document.getElementById('toDate').value;
+
+  document.getElementById('rewardsBody').innerHTML = '<tr><td colspan="9"><div class="loading"><div class="spinner"></div> Loading rewards...</div></td></tr>';
+
+  try {
+    const result = await getRewards({
+      page,
+      limit: 50,
+      search,
+      status: status === 'all' ? '' : status,
+      from,
+      to
+    });
+
+    const rewards = result?.data || [];
+    const pagination = result?.pagination || { page: 1, total: 0, pages: 1 };
+
+    if (!rewards.length) {
+      document.getElementById('rewardsBody').innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="icon">🏆</div><h3>No rewards found</h3><p>No reward wheel entries yet</p></div></td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    const statusLabels = {
+      claimed: 'CLAIMED',
+      pending_confirmation: 'PENDING CONFIRMATION',
+      delivered: 'DELIVERED',
+      paid_out: 'PAID OUT',
+      expired: 'EXPIRED'
+    };
+    const statusColors = {
+      claimed: 'confirmed',
+      pending_confirmation: 'pending',
+      delivered: 'shipped',
+      paid_out: 'delivered',
+      expired: 'cancelled'
+    };
+
+    let totalAmount = 0;
+    let paidCount = 0;
+
+    document.getElementById('rewardsBody').innerHTML = rewards.map(r => {
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+      if (r.reward_amount) totalAmount += r.reward_amount;
+      if (r.status === 'paid_out') paidCount++;
+      return '<tr>' +
+        '<td style="font-family:monospace;font-size:11px">' + (r.reward_id || '—').slice(0, 18) + '</td>' +
+        '<td><strong>' + (r.name || '—') + '</strong></td>' +
+        '<td>' + (r.phone || '—') + '</td>' +
+        '<td>₹' + (r.reward_amount || 0) + '</td>' +
+        '<td style="font-size:12px">' + (r.reward_label || '—') + '</td>' +
+        '<td><span class="status status-' + (statusColors[r.status] || 'pending') + '" style="font-size:11px">' + (statusLabels[r.status] || r.status || 'CLAIMED') + '</span></td>' +
+        '<td style="font-family:monospace;font-size:11px">' + (r.order_id ? r.order_id.slice(0, 12) : '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--text2)">' + date + '</td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="viewReward('' + r.reward_id + '')">View</button></td>' +
+        '</tr>';
+    }).join('');
+
+    // Update stats
+    document.getElementById('statTotalRewards').textContent = pagination.total || rewards.length;
+    document.getElementById('statTotalPaid').textContent = paidCount;
+    document.getElementById('statTotalAmount').textContent = '₹' + totalAmount.toLocaleString('en-IN');
+
+    // Pagination
+    totalPages = pagination.pages || 1;
+    const current = pagination.page || 1;
+    renderPagination(current, totalPages);
+
+  } catch(e) {
+    document.getElementById('rewardsBody').innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="icon">⚠️</div><h3>Failed to load</h3><p>' + e.message + '</p></div></td></tr>';
+    document.getElementById('pagination').innerHTML = '';
+  }
+}
+
+function renderPagination(current, total) {
+  const el = document.getElementById('pagination');
+  if (total <= 1) { el.innerHTML = ''; return; }
+
+  let html = '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + (current - 1) + ')" ' + (current <= 1 ? 'disabled' : '') + '>◀</button>';
+
+  const start = Math.max(1, current - 2);
+  const end = Math.min(total, current + 2);
+
+  if (start > 1) html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(1)">1</button>';
+  if (start > 2) html += '<span class="info">...</span>';
+
+  for (let i = start; i <= end; i++) {
+    html += '<button class="btn btn-secondary btn-sm' + (i === current ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+  }
+
+  if (end < total - 1) html += '<span class="info">...</span>';
+  if (end < total) html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + total + ')">' + total + '</button>';
+
+  html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + (current + 1) + ')" ' + (current >= total ? 'disabled' : '') + '>▶</button>';
+  html += '<span class="info">Page ' + current + ' of ' + total + '</span>';
+
+  el.innerHTML = html;
+}
+
+window.goToPage = function(page) {
+  if (page < 1 || page > totalPages) return;
+  loadRewards(page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.viewReward = async function(rewardId) {
+  currentRewardId = rewardId;
+  try {
+    const reward = await getRewardDetail(rewardId);
+    showRewardModal(reward);
+  } catch(e) {
+    alert('Failed to load reward: ' + e.message);
+  }
+};
+
+function showRewardModal(reward) {
+  const statusLabels = { claimed: 'Claimed', pending_confirmation: 'Pending Confirmation', delivered: 'Delivered', paid_out: 'Paid Out', expired: 'Expired' };
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  overlay.innerHTML = '<div class="modal" style="background:var(--bg2);border-radius:12px;max-width:500px;width:100%;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.5)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+      '<h3 style="margin:0">🏆 Reward Details</h3>' +
+      '<button onclick="this.closest(\'.modal-overlay\').remove()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">&times;</button>' +
+    '</div>' +
+    '<div class="detail-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Reward ID</label><div class="value" style="font-family:monospace;font-size:13px">' + (reward.reward_id || '—') + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Status</label><div class="value"><span class="status status-' + ({claimed:'confirmed',pending_confirmation:'pending',delivered:'shipped',paid_out:'delivered',expired:'cancelled'}[reward.status] || 'pending') + '">' + (statusLabels[reward.status] || reward.status || '—') + '</span></div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Name</label><div class="value" style="font-size:16px;font-weight:700">' + (reward.name || '—') + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Phone</label><div class="value" style="font-size:15px">' + (reward.phone || '—') + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Amount</label><div class="value" style="font-size:18px;font-weight:700;color:var(--primary)">₹' + (reward.reward_amount || 0) + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Label</label><div class="value" style="font-size:13px">' + (reward.reward_label || '—') + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Created At</label><div class="value" style="font-size:13px;color:var(--text2)">' + (reward.created_at ? new Date(reward.created_at).toLocaleString('en-IN') : '—') + '</div></div>' +
+      '<div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Claimed At</label><div class="value" style="font-size:13px;color:var(--text2)">' + (reward.claimed_at ? new Date(reward.claimed_at).toLocaleString('en-IN') : '—') + '</div></div>' +
+    '</div>' +
+    '<div style="margin-top:16px"><div class="detail-field"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:4px">Order ID</label><div class="value" style="font-family:monospace;font-size:12px">' + (reward.order_id || '—') + '</div></div></div>' +
+    '<div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<select class="form-control" id="statusSelect" style="width:auto;min-width:160px">' +
+        '<option value="claimed" ' + (reward.status === 'claimed' ? 'selected' : '') + '>Claimed</option>' +
+        '<option value="pending_confirmation" ' + (reward.status === 'pending_confirmation' ? 'selected' : '') + '>Pending Confirmation</option>' +
+        '<option value="delivered" ' + (reward.status === 'delivered' ? 'selected' : '') + '>Delivered</option>' +
+        '<option value="paid_out" ' + (reward.status === 'paid_out' ? 'selected' : '') + '>Paid Out</option>' +
+        '<option value="expired" ' + (reward.status === 'expired' ? 'selected' : '') + '>Expired</option>' +
+      '</select>' +
+      '<button class="btn btn-primary btn-sm" onclick="updateRewardModalStatus(this)">Update Status</button>' +
+    '</div>' +
+    '<div id="statusMsg" style="margin-top:10px"></div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+window.updateRewardModalStatus = async function(btn) {
+  if (!currentRewardId) return;
+  const status = document.getElementById('statusSelect').value;
+  const msg = document.getElementById('statusMsg');
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
+  msg.innerHTML = '';
+
+  try {
+    const result = await updateRewardStatus(currentRewardId, status);
+    msg.innerHTML = '<div class="alert alert-success show">✅ Status updated to <strong>' + status + '</strong>!</div>';
+    setTimeout(() => {
+      document.querySelector('.modal-overlay')?.remove();
+      loadRewards(currentPage);
+    }, 1000);
+  } catch(e) {
+    msg.innerHTML = '<div class="alert alert-error show">❌ ' + e.message + '</div>';
+    btn.disabled = false;
+    btn.textContent = 'Update Status';
+  }
+};
+
+window.loadRewards = loadRewards;
+
+// Init
+const token = localStorage.getItem('admin_token');
+if (!token) { window.location.href = '/index.html'; } else { loadRewards(); }
+</script>
+
+</body>
+</html>

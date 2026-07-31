@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment Settings — Avnideep Admin</title>
+<link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/api.js"></script>
+<script src="/js/mobile-menu.js"></script>
+<script src="/js/pwa.js"></script>
+<style>
+  .settings-card { background: var(--card); border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .settings-card h3 { margin: 0 0 16px; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .settings-card .desc { color: var(--text2); font-size: 13px; margin: -10px 0 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .form-group .hint { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .toggle-wrap { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .toggle { position: relative; width: 48px; height: 26px; background: var(--border); border-radius: 13px; cursor: pointer; transition: 0.2s; display: inline-block; border: none; }
+  .toggle.active { background: #10b981; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: 0.2s; }
+  .toggle.active::after { left: 25px; }
+  .connection-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; }
+  .connection-badge.connected { background: rgba(16,185,129,0.15); color: #10b981; }
+  .connection-badge.disconnected { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .mode-selector { display: flex; gap: 8px; }
+  .mode-btn { padding: 8px 20px; border-radius: 8px; border: 2px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.2s; }
+  .mode-btn.active { border-color: #6366f1; color: #6366f1; background: rgba(99,102,241,0.1); }
+  .secret-info { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
+  .secret-info strong { color: #f59e0b; }
+  .secret-info code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 24px; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: 0.3s; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: #10b981; }
+  .toast.error { background: #ef4444; }
+</style>
+
+<style>
+@media (max-width: 640px) {
+  .settings-card { padding: 14px; }
+  .settings-card .form-control { width: 100%; }
+  .settings-card .toggle-row { flex-direction: row; align-items: center; }
+  .settings-card .mode-selector { flex-wrap: wrap; gap: 6px; }
+  .settings-card .mode-selector button { flex: 1; min-width: 60px; font-size: 13px; }
+  .settings-card input[type="text"] { font-size: 14px; min-height: 40px; }
+}
+@media (max-width: 480px) {
+  .settings-card { padding: 10px; }
+  .settings-card h3 { font-size: 14px; }
+  .settings-card .connection-badge { font-size: 11px; }
+}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Avnideep</h2>
+      <small>Admin Panel</small>
+    </div>
+    <div class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a href="rewards.html"><span class="icon">🏆</span><span>Rewards</span></a>
+      <a href="orders.html"><span class="icon">📋</span><span>Orders</span></a>
+      <a href="analytics.html"><span class="icon">📈</span><span>Analytics</span></a>
+      <a href="payment-settings.html" class="active"><span class="icon">💳</span><span>Payment</span></a>
+    </div>
+    <button id="installAppBtn" onclick="installApp()" style="display:none;margin:4px 12px 8px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-height:44px;align-items:center;gap:8px;justify-content:center;" class="install-app-btn">📲 Install App</button>
+        <div class="logout-btn">
+      <button onclick="handleLogout()">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div>
+          <h1>Payment Settings</h1>
+        <p>Configure Razorpay and COD payment methods</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="testConnection()">🔌 Test Connection</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="settings-card">
+      <h3>🔗 Connection Status</h3>
+      <div id="connectionStatus">
+        <span class="connection-badge disconnected">⏳ Checking...</span>
+      </div>
+    </div>
+
+    <!-- Razorpay Settings -->
+    <div class="settings-card">
+      <h3>💳 Razorpay</h3>
+      <p class="desc">Accept online payments via Razorpay (UPI, Credit/Debit Card, NetBanking, Wallet)</p>
+
+      <div class="form-group">
+        <div class="toggle-wrap">
+          <div>
+            <button class="toggle" id="razorpayToggle" onclick="toggleRazorpay()"></button>
+          </div>
+          <div>
+            <strong style="color:var(--text);font-size:14px">Enable Razorpay</strong>
+            <div style="font-size:12px;color:var(--text2)">Allow customers to pay online via Razorpay</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Mode</label>
+        <div class="mode-selector" id="modeSelector">
+          <button class="mode-btn active" data-mode="test" onclick="setMode('test')">🧪 Test Mode</button>
+          <button class="mode-btn" data-mode="live" onclick="setMode('live')">🚀 Live Mode</button>
+        </div>
+        <div class="hint">Use Test Mode for development, Live Mode for real payments</div>
+      </div>
+
+      <div class="form-group">
+        <label>Razorpay Key ID</label>
+        <input type="text" class="form-control" id="razorpayKeyId" placeholder="rzp_live_... or rzp_test_..." style="max-width:400px">
+        <div class="hint">Find this in Razorpay Dashboard → Settings → API Keys</div>
+      </div>
+
+      <div class="secret-info">
+        <strong>⚠️ Secrets are stored as Worker Secrets</strong><br>
+        <span style="font-size:13px;color:var(--text2)">
+          The following must be set via the Cloudflare Dashboard or CLI:<br>
+          <code>wrangler secret put RAZORPAY_KEY_SECRET</code> — Your Razorpay Key Secret<br>
+          <code>wrangler secret put RAZORPAY_WEBHOOK_SECRET</code> — Webhook secret for payment events
+        </span>
+        <br><br>
+        <button class="btn btn-secondary btn-sm" onclick="showSecretHelp()">📋 Show CLI Commands</button>
+        <pre id="secretHelp" style="display:none;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;margin-top:8px;font-size:12px;overflow-x:auto">
+# Deploy secrets to your admin API worker:
+cd admin-panel/admin-api-worker
+npx wrangler secret put RAZORPAY_KEY_SECRET
+# Paste your Razorpay Key Secret when prompted
+
+npx wrangler secret put RAZORPAY_WEBHOOK_SECRET
+# Paste your Webhook Secret when prompted
+
+# For the main website webhook:
+cd Avnideep-Shilajit
+npx wrangler secret put RAZORPAY_WEBHOOK_SECRET
+        </pre>
+      </div>
+    </div>
+
+    <!-- COD Settings -->
+    <div class="settings-card">
+      <h3>💵 Cash on Delivery</h3>
+      <p class="desc">Accept payments when order is delivered</p>
+      <div class="form-group">
+        <div class="toggle-wrap">
+          <div>
+            <button class="toggle active" id="codToggle" onclick="toggleCOD()"></button>
+          </div>
+          <div>
+            <strong style="color:var(--text);font-size:14px">Enable COD</strong>
+            <div style="font-size:12px;color:var(--text2)">Allow customers to pay with cash on delivery</div>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label>COD Mode</label>
+        <div class='mode-selector' id='codModeSelector'>
+          <button class='mode-btn active' data-codmode='advance' onclick='setCodMode(&quot;advance&quot;)'>💰 ₹100 Advance + ₹1,150 COD</button>
+          <button class='mode-btn' data-codmode='full_cod' onclick='setCodMode(&quot;full_cod&quot;)'>💵 Full COD ₹1,250</button>
+        </div>
+        <div class='hint'>Advance: customer pays ₹100 (Razorpay) now + ₹1,150 cash on delivery. Full COD: pay ₹1,250 cash on delivery.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+window.handleLogout = logout;
+
+let currentSettings = {
+  enabled: false,
+  key_id: '',
+  mode: 'test',
+  connected: false
+};
+
+let codEnabled = true;
+let checkoutMode = 'advance';
+
+async function loadSettings() {
+  try {
+    const data = await getPaymentSettings();
+    currentSettings = data;
+    
+    // Update UI
+    document.getElementById('razorpayKeyId').value = data.key_id || '';
+    
+    // Toggle state
+    const toggle = document.getElementById('razorpayToggle');
+    if (data.enabled) {
+      toggle.classList.add('active');
+    } else {
+      toggle.classList.remove('active');
+    }
+    
+    // Mode
+    setMode(data.mode || 'test');
+
+    // COD Mode
+    if (data.checkout_mode) setCodMode(data.checkout_mode);
+    
+    // Connection status
+    updateConnectionStatus(data.connected);
+    
+  } catch(e) {
+    showToast('Failed to load settings: ' + e.message, 'error');
+  }
+}
+
+window.toggleRazorpay = function() {
+  currentSettings.enabled = !currentSettings.enabled;
+  const toggle = document.getElementById('razorpayToggle');
+  toggle.classList.toggle('active');
+};
+
+window.toggleCOD = function() {
+  codEnabled = !codEnabled;
+  document.getElementById('codToggle').classList.toggle('active');
+};
+
+window.setCodMode = function(mode) {
+  checkoutMode = mode;
+  document.querySelectorAll('#codModeSelector .mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.codmode === mode);
+  });
+};
+
+window.setMode = function(mode) {
+  currentSettings.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+};
+
+function updateConnectionStatus(connected) {
+  const el = document.getElementById('connectionStatus');
+  if (connected) {
+    el.innerHTML = '<span class="connection-badge connected">✅ Connected — Razorpay API keys are valid</span>';
+  } else {
+    el.innerHTML = '<span class="connection-badge disconnected">❌ Not Connected — Configure API keys and set secrets</span>';
+  }
+}
+
+window.testConnection = async function(e) {
+  const btn = (e && e.currentTarget) || document.querySelector('[onclick*="testConnection"]');
+  btn.disabled = true;
+  btn.textContent = '⏳ Testing...';
+  
+  try {
+    const result = await testPaymentConnection();
+    updateConnectionStatus(result.connected);
+    showToast(result.message, result.connected ? 'success' : 'error');
+  } catch(e) {
+    showToast('Connection test failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔌 Test Connection';
+  }
+};
+
+window.saveSettings = async function() {
+  const btn = document.querySelector('.btn-primary');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving...';
+  
+  try {
+    const keyId = document.getElementById('razorpayKeyId').value.trim();
+    const result = await updatePaymentSettings({
+      enabled: currentSettings.enabled,
+      key_id: keyId,
+      mode: currentSettings.mode,
+      checkout_mode: checkoutMode
+    });
+    showToast(result.message || 'Settings saved!', 'success');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save Settings';
+  }
+};
+
+window.showSecretHelp = function() {
+  const el = document.getElementById('secretHelp');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+function showToast(message, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.className = 'toast ' + type + ' show';
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// Init
+const token = localStorage.getItem('admin_token');
+if (!token) { window.location.href = '/index.html'; } else { loadSettings(); }
+</script>
+
+</body>
+</html>

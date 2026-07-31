@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "avnideep-admin-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://admin.avnideep.in",
+    "ADMIN_EMAIL": "admin@avnideepayurveda.in"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "avnideep-orders",
+      "database_id": "206a16cc-c347-45d1-9168-e34a7511491d"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

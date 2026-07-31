@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEO & Settings - Avnideep Admin</title>
+  <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/api.js"></script>
+  <script src="/js/mobile-menu.js"></script>
+  <script src="/js/pwa.js"></script>
+  <style>
+    .seo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .seo-grid { grid-template-columns: 1fr; } }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; }
+    .setting-info label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .setting-info .desc { font-size: 12px; color: var(--text2); }
+    .toggle-wrap { flex-shrink: 0; }
+    .save-bar { position: sticky; bottom: 0; background: var(--bg2); padding: 16px 0; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }
+  </style>
+
+<style>
+@media (max-width: 640px) {
+  .seo-form .form-group { margin-bottom: 12px; }
+  .seo-form .form-control { width: 100%; font-size: 14px; }
+  .seo-form label { font-size: 13px; }
+  .seo-form textarea { min-height: 80px; }
+  .seo-preview-card { padding: 12px; }
+  .seo-preview-card h3 { font-size: 14px; }
+}
+@media (max-width: 480px) {
+  .seo-form .form-group { margin-bottom: 8px; }
+  .seo-form .form-control { font-size: 13px; padding: 8px 10px; }
+}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Avnideep</h2>
+      <small>Admin Panel</small>
+    </div>
+    <div class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a href="rewards.html"><span class="icon">🏆</span><span>Rewards</span></a>
+      <a href="orders.html"><span class="icon">📋</span><span>Orders</span></a>
+      <a href="analytics.html"><span class="icon">📈</span><span>Analytics</span></a>
+      <a href="payment-settings.html"><span class="icon">💳</span><span>Payment</span></a>
+      <a href="seo.html" class="active"><span class="icon">🔍</span><span>SEO</span></a>
+    </div>
+    <button id="installAppBtn" onclick="installApp()" style="display:none;margin:4px 12px 8px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-height:44px;align-items:center;gap:8px;justify-content:center;" class="install-app-btn">📲 Install App</button>
+        <div class="logout-btn">
+      <button onclick="handleLogout()">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div><h1>🔍 SEO & Settings</h1><p style="color:var(--text2);font-size:14px">Manage search engine optimization and site settings</p></div>
+      </div>
+      <div id="adminEmail" style="font-size:14px;color:var(--text2)"></div>
+    </div>
+
+    <div class="seo-grid">
+      <!-- SEO Settings -->
+      <div class="card">
+        <div class="card-header"><h3>🔍 SEO Settings</h3></div>
+        <div class="card-body" style="padding:20px">
+          <div class="form-group">
+            <label>Meta Title</label>
+            <input type="text" id="meta_title" class="form-input" maxlength="120" placeholder="Page title for search engines">
+            <span class="hint">Recommended: 50-60 characters</span>
+          </div>
+          <div class="form-group">
+            <label>Meta Description</label>
+            <textarea id="meta_description" class="form-input" rows="3" maxlength="320" placeholder="Page description for search engines"></textarea>
+            <span class="hint">Recommended: 150-160 characters</span>
+          </div>
+          <div class="form-group">
+            <label>Canonical URL</label>
+            <input type="url" id="canonical_url" class="form-input" placeholder="https://shop.avnideep.in/">
+          </div>
+          <div class="form-group">
+            <label>Open Graph Image URL</label>
+            <input type="url" id="og_image" class="form-input" placeholder="https://cdn.avnideepayurveda.in/.../og-image.webp">
+            <span class="hint">Recommended size: 1200×630px</span>
+          </div>
+          <div class="form-group">
+            <label>Robots</label>
+            <input type="text" id="robots" class="form-input" placeholder="index, follow">
+          </div>
+          <div class="form-group">
+            <label>Favicon URL</label>
+            <input type="url" id="favicon" class="form-input" placeholder="/favicon.ico">
+          </div>
+        </div>
+      </div>
+
+      <!-- General Settings -->
+      <div class="card">
+        <div class="card-header"><h3>⚙️ General Settings</h3></div>
+        <div class="card-body" style="padding:20px">
+          <div class="setting-row">
+            <div class="setting-info">
+              <label>Maintenance Mode</label>
+              <span class="desc">When enabled, visitors see a maintenance page instead of the landing page</span>
+            </div>
+            <div class="toggle-wrap">
+              <div class="toggle" id="maintenance_mode_toggle" onclick="this.classList.toggle('active')">
+                <div class="toggle-knob"></div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Announcement Text</label>
+            <input type="text" id="announcement_text" class="form-input" placeholder="Special offer: 50% OFF! Use code...">
+            <span class="hint">Shown as a banner at the top of the landing page</span>
+          </div>
+          <div class="form-group">
+            <label>Footer Text</label>
+            <input type="text" id="footer_text" class="form-input" placeholder="© 2026 Avnideep Ayurveda. All rights reserved.">
+          </div>
+
+          <hr style="border-color:var(--border);margin:20px 0">
+          
+          <h4 style="margin-bottom:12px">📋 Current Landing Page Meta</h4>
+          <div id="currentMetaPreview" style="background:var(--bg3);padding:16px;border-radius:8px;font-size:13px;line-height:1.6">
+            <div><strong>Title:</strong> <span id="previewTitle">—</span></div>
+            <div><strong>Description:</strong> <span id="previewDesc">—</span></div>
+            <div><strong>Canonical:</strong> <span id="previewCanonical">—</span></div>
+            <div><strong>OG Image:</strong> <span id="previewOg">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Bar -->
+    <div class="save-bar">
+      <button class="btn btn-secondary" onclick="loadSettings()">↻ Reset</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveAll()">💾 Save All Changes</button>
+    </div>
+  </main>
+</div>
+
+<script>
+
+window.handleLogout = logout;
+
+async function loadSettings() {
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = '⏳ Loading...';
+  try {
+    const [seoRes, settingsRes] = await Promise.all([getSeoSettings(), getGeneralSettings()]);
+    if (seoRes.ok) {
+      const s = seoRes.seo;
+      document.getElementById('meta_title').value = s.meta_title || '';
+      document.getElementById('meta_description').value = s.meta_description || '';
+      document.getElementById('canonical_url').value = s.canonical_url || '';
+      document.getElementById('og_image').value = s.og_image || '';
+      document.getElementById('robots').value = s.robots || '';
+      document.getElementById('favicon').value = s.favicon || '';
+      updatePreview(s);
+    }
+    if (settingsRes.ok) {
+      const g = settingsRes.settings;
+      document.getElementById('announcement_text').value = g.announcement_text || '';
+      document.getElementById('footer_text').value = g.footer_text || '';
+      const toggle = document.getElementById('maintenance_mode_toggle');
+      if (g.maintenance_mode === 'true') toggle.classList.add('active');
+      else toggle.classList.remove('active');
+    }
+  } catch(e) { console.error('Load error:', e); }
+  saveBtn.disabled = false; saveBtn.textContent = '💾 Save All Changes';
+}
+
+function updatePreview(s) {
+  document.getElementById('previewTitle').textContent = s.meta_title || '—';
+  document.getElementById('previewDesc').textContent = s.meta_description || '—';
+  document.getElementById('previewCanonical').textContent = s.canonical_url || '—';
+  document.getElementById('previewOg').textContent = s.og_image || '—';
+}
+
+window.saveAll = async function() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
+  try {
+    const seoData = {
+      meta_title: document.getElementById('meta_title').value,
+      meta_description: document.getElementById('meta_description').value,
+      canonical_url: document.getElementById('canonical_url').value,
+      og_image: document.getElementById('og_image').value,
+      robots: document.getElementById('robots').value,
+      favicon: document.getElementById('favicon').value
+    };
+    const settingsData = {
+      maintenance_mode: document.getElementById('maintenance_mode_toggle').classList.contains('active') ? 'true' : 'false',
+      announcement_text: document.getElementById('announcement_text').value,
+      footer_text: document.getElementById('footer_text').value
+    };
+    await Promise.all([
+      updateSeoSettings(seoData),
+      updateGeneralSettings(settingsData)
+    ]);
+    btn.textContent = '✅ Saved!';
+    setTimeout(() => { btn.textContent = '💾 Save All Changes'; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = '❌ Failed: ' + e.message;
+    setTimeout(() => { btn.textContent = '💾 Save All Changes'; btn.disabled = false; }, 3000);
+  }
+};
+
+// Init
+const token = localStorage.getItem('admin_token');
+if (!token) { window.location.href = '/index.html'; } else { loadSettings(); }
+</script>
+
+</body>
+</html>

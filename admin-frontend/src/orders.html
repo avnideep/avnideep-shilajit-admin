@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Orders — Avnideep Admin</title>
+
+<link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/api.js"></script>
+<script src="/js/mobile-menu.js"></script>
+<script src="/js/pwa.js"></script>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+
+<body>
+
+<div class="app-layout">
+
+  <nav class="sidebar" id="sidebar">
+
+    <div class="sidebar-logo">
+
+      <h2>Avnideep</h2>
+
+      <small>Admin Panel</small>
+
+    </div>
+
+    <div class="sidebar-nav">
+
+      <a href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a href="rewards.html"><span class="icon">🏆</span><span>Rewards</span></a>
+
+      <a href="orders.html" class="active"><span class="icon">📋</span><span>Orders</span></a>
+      <a href="analytics.html"><span class="icon">📈</span><span>Analytics</span></a>
+      <a href="payment-settings.html"><span class="icon">💳</span><span>Payment</span></a>
+      <a href="seo.html"><span class="icon">🔍</span><span>SEO</span></a>
+
+    </div>
+    <button id="installAppBtn" onclick="installApp()" style="display:none;margin:4px 12px 8px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-height:44px;align-items:center;gap:8px;justify-content:center;" class="install-app-btn">📲 Install App</button>
+
+        <div class="logout-btn">
+
+      <button onclick="handleLogout()">🚪 Logout</button>
+
+    </div>
+
+  </nav>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+
+
+  <main class="main-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div>
+          <h1>Orders</h1>
+
+        <p>Manage and track all orders</p>
+
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV</button>
+
+        <button class="btn btn-secondary btn-sm" onclick="exportExcel()">📊 Excel</button>
+
+        <button class="btn btn-primary btn-sm" onclick="loadOrders()">🔄 Refresh</button>
+        <button class="btn btn-danger btn-sm" id="deleteSelectedBtn" onclick="confirmDeleteSelected()" style="display:none">🗑️ Delete Selected</button>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="filters-bar">
+
+      <input type="text" class="form-control search-input" id="searchInput" placeholder="🔍 Search by name, phone, order ID..." onkeydown="if(event.key==='Enter')loadOrders()">
+
+      <select class="form-control" id="statusFilter" onchange="loadOrders()">
+
+        <option value="all">📋 All Status</option>
+
+        <option value="pending">⏳ Pending</option>
+
+        <option value="confirmed">✅ Confirmed</option>
+
+        <option value="shipped">📦 Shipped</option>
+
+        <option value="delivered">🎉 Delivered</option>
+
+        <option value="cancelled">❌ Cancelled</option>
+
+      </select>
+
+      <select class="form-control" id="spinFilter" onchange="loadOrders()">
+
+        <option value="all">All Orders</option>
+
+        <option value="spin">Spin</option>
+
+        <option value="nospin">No Spin</option>
+
+      </select>
+
+      <input type="date" class="form-control" id="fromDate" onchange="loadOrders()">
+
+      <span style="color:var(--text2);font-size:13px">to</span>
+
+      <input type="date" class="form-control" id="toDate" onchange="loadOrders()">
+
+    </div>
+
+
+
+    <div class="card">
+
+      <div class="table-wrap">
+
+        <table id="ordersTable">
+
+          <thead>
+
+            <tr>
+
+              <th style="width:36px"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th>
+              <th>Order ID</th>
+
+              <th>Customer</th>
+
+              <th>Phone</th>
+
+              <th>Amount</th>
+
+              <th>Payment</th>
+
+              <th>Status</th>
+
+              <th>Spin</th>
+              <th>Reward</th>
+              <th>Date</th>
+
+              <th>Action</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="ordersBody"></tbody>
+
+        </table>
+
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+
+    </div>
+
+  </main>
+
+</div>
+
+
+
+<script>
+
+
+
+
+window.handleLogout = logout;
+
+
+
+let currentPage = 1;
+
+let totalPages = 1;
+
+
+
+function normalizeOrderStatus(status, paymentStatus = '', paymentMethod = '') {
+  const s = String(status || '').toLowerCase().trim();
+  const p = String(paymentStatus || '').toLowerCase().trim();
+
+  if (p === 'paid' || p === 'captured' || p === 'authorized') return 'confirmed';
+  if (p === 'failed' || p === 'refunded' || p === 'cancelled') return 'cancelled';
+
+  if (['confirmed', 'complete', 'success', 'paid'].includes(s)) return 'confirmed';
+  if (['processing', 'payment_processing'].includes(s)) return 'processing';
+  if (['shipped', 'dispatched'].includes(s)) return 'shipped';
+  if (['out_for_delivery', 'out for delivery'].includes(s)) return 'out_for_delivery';
+  if (['delivered'].includes(s)) return 'delivered';
+  if (['cancelled', 'canceled', 'failed', 'payment_failed', 'refunded', 'refund'].includes(s)) return 'cancelled';
+  if (['returned'].includes(s)) return 'returned';
+  if (['cod_order', 'pending', 'payment_pending', 'new', 'created'].includes(s)) return 'pending';
+
+  if (paymentMethod === 'prepaid' && p === '') return 'confirmed';
+  return 'pending';
+}
+
+async function loadOrders(page = 1) {
+
+  currentPage = page;
+
+  const search = document.getElementById('searchInput').value;
+
+  const status = document.getElementById('statusFilter').value;
+  const spin = document.getElementById('spinFilter').value;
+
+  const from = document.getElementById('fromDate').value;
+
+  const to = document.getElementById('toDate').value;
+
+
+
+  document.getElementById('ordersBody').innerHTML = '<tr><td colspan="12"><div class="loading"><div class="spinner"></div> Loading orders...</div></td></tr>';
+
+
+
+  try {
+
+    const result = await getOrders({
+
+      page,
+
+      limit: 20,
+
+      search,
+
+      status: status === 'all' ? '' : status,
+      spin,
+
+      from,
+
+      to
+
+    });
+
+
+
+    const orders = result?.data || [];
+
+    const pagination = result?.pagination || { page: 1, total: 0, pages: 1 };
+
+
+
+    if (!orders.length) {
+
+      document.getElementById('ordersBody').innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">📭</div><h3>No orders found</h3><p>Try changing your search or filters</p></div></td></tr>';
+
+      document.getElementById('pagination').innerHTML = '';
+
+      return;
+
+    }
+
+
+
+    const statusLabels = { pending: 'PENDING', confirmed: 'CONFIRMED', processing: 'PROCESSING', shipped: 'SHIPPED', out_for_delivery: 'OUT FOR DELIVERY', delivered: 'DELIVERED', cancelled: 'CANCELLED', returned: 'RETURNED' };
+
+    const payLabels = { prepaid: 'PREPAID', cod: 'COD', cod_whatsapp: 'COD(WA)' };
+
+
+
+    document.getElementById('ordersBody').innerHTML = orders.map(o => {
+
+      const date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+
+      const amount = '₹' + (o.amount || 0).toLocaleString('en-IN');
+      const hasSpin = o.reward_id && o.reward_id.trim() !== '';
+      const rewardAmt = o.reward_amount || 0;
+      const normalizedStatus = normalizeOrderStatus(o.status, o.payment_status, o.payment_method);
+      const paymentStatus = String(o.payment_status || '').toLowerCase();
+      const paymentDisplay = paymentStatus === 'paid' || paymentStatus === 'captured' ? 'PAID' : paymentStatus === 'failed' ? 'FAILED' : paymentStatus === 'refunded' ? 'REFUNDED' : 'PENDING';
+      const paymentMethodLabel = o.payment_method === 'prepaid' ? 'PREPAID' : (o.payment_method === 'cod' ? 'COD' : String(o.payment_method || '—').toUpperCase());
+      const paymentClass = paymentStatus === 'paid' || paymentStatus === 'captured' ? 'confirmed' : paymentStatus === 'failed' ? 'cancelled' : 'pending';
+
+      return '<tr>' +
+        '<td><input type=\"checkbox\" class=\"order-checkbox\" value=\"' + encodeURIComponent(o.order_id || o.id) + '\" onchange=\"updateDeleteButton()\"></td>' +
+
+        '<td><a href="order-detail.html?id=' + encodeURIComponent(o.order_id || o.id) + '" style="font-family:monospace;font-size:12px">' + (o.order_id || o.id || '—').slice(0,16) + '</a></td>' +
+
+        '<td><strong>' + (o.name || '—') + '</strong></td>' +
+
+        '<td>' + (o.phone || '—') + '</td>' +
+
+        '<td>' + amount + '</td>' +
+
+        '<td><span class="status status-' + paymentClass + '">' + paymentDisplay + ' · ' + paymentMethodLabel + '</span></td>' +
+
+        '<td><span class="status status-' + normalizedStatus + '">' + (statusLabels[normalizedStatus] || normalizedStatus.toUpperCase()) + '</span></td>' +
+
+        '<td>' + (hasSpin ? '<span class="status status-confirmed" style="font-size:11px"> Spin</span>' : '<span class="status status-pending" style="font-size:11px"> No Spin</span>') + '</td>' +
+        '<td>' + (hasSpin ? '\u20b9' + rewardAmt : '\u2014') + '</td>' +
+        '<td style="font-size:12px;color:var(--text2)">' + date + '</td>' +
+
+        '<td><a href="order-detail.html?id=' + encodeURIComponent(o.order_id || o.id) + '" class="btn btn-secondary btn-sm">View</a></td>' +
+
+        '</tr>';
+
+    }).join('');
+
+
+
+    // Pagination
+
+    totalPages = pagination.pages || 1;
+
+    const current = pagination.page || 1;
+
+    renderPagination(current, totalPages);
+
+
+
+  } catch(e) {
+
+    document.getElementById('ordersBody').innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">⚠️</div><h3>Failed to load</h3><p>' + e.message + '</p></div></td></tr>';
+
+    document.getElementById('pagination').innerHTML = '';
+
+  }
+
+}
+
+
+
+function renderPagination(current, total) {
+
+  const el = document.getElementById('pagination');
+
+  if (total <= 1) { el.innerHTML = ''; return; }
+
+
+
+  let html = '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + (current - 1) + ')" ' + (current <= 1 ? 'disabled' : '') + '>◀</button>';
+
+
+
+  const start = Math.max(1, current - 2);
+
+  const end = Math.min(total, current + 2);
+
+
+
+  if (start > 1) html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(1)">1</button>';
+
+  if (start > 2) html += '<span class="info">...</span>';
+
+
+
+  for (let i = start; i <= end; i++) {
+
+    html += '<button class="btn btn-secondary btn-sm' + (i === current ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+
+  }
+
+
+
+  if (end < total - 1) html += '<span class="info">...</span>';
+
+  if (end < total) html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + total + ')">' + total + '</button>';
+
+
+
+  html += '<button class="btn btn-secondary btn-sm" onclick="goToPage(' + (current + 1) + ')" ' + (current >= total ? 'disabled' : '') + '>▶</button>';
+
+  html += '<span class="info">Page ' + current + ' of ' + total + '</span>';
+
+
+
+  el.innerHTML = html;
+
+}
+
+
+
+window.goToPage = function(page) {
+
+  if (page < 1 || page > totalPages) return;
+
+  loadOrders(page);
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+};
+
+
+
+window.exportCSV = async function() {
+
+  try {
+
+    const status = document.getElementById('statusFilter').value;
+
+    const from = document.getElementById('fromDate').value;
+
+    const to = document.getElementById('toDate').value;
+
+    await exportOrders({ format: 'csv', status: status === 'all' ? '' : status, from, to });
+
+  } catch(e) { alert('Export failed: ' + e.message); }
+
+};
+
+
+
+window.exportExcel = async function() {
+
+  try {
+
+    const status = document.getElementById('statusFilter').value;
+
+    const from = document.getElementById('fromDate').value;
+
+    const to = document.getElementById('toDate').value;
+
+    await exportOrders({ format: 'excel', status: status === 'all' ? '' : status, from, to });
+
+  } catch(e) { alert('Export failed: ' + e.message); }
+
+};
+
+
+
+window.loadOrders = loadOrders;
+
+
+
+// Select / Deselect All
+window.toggleSelectAll = function(checkbox) {
+  document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = checkbox.checked);
+  updateDeleteButton();
+};
+
+// Update Delete Selected button visibility
+window.updateDeleteButton = function() {
+  const checked = document.querySelectorAll('.order-checkbox:checked').length;
+  const btn = document.getElementById('deleteSelectedBtn');
+  if (btn) {
+    btn.style.display = checked > 0 ? 'inline-flex' : 'none';
+    btn.textContent = '🗑️ Delete (' + checked + ')';
+  }
+};
+
+// Confirm and delete selected orders
+window.confirmDeleteSelected = async function() {
+  const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+  const ids = Array.from(checkboxes).map(cb => decodeURIComponent(cb.value));
+
+  if (ids.length === 0) return;
+
+  if (!confirm('Are you sure you want to delete ' + ids.length + ' order(s)?\n\nThis action cannot be undone!')) {
+    return;
+  }
+
+  const btn = document.getElementById('deleteSelectedBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Deleting...';
+
+  try {
+    const result = await deleteOrders(ids);
+    alert('Successfully deleted ' + (result?.deleted || ids.length) + ' order(s).');
+    loadOrders();
+  } catch(e) {
+    alert('Failed to delete: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.style.display = 'none';
+    document.getElementById('selectAllCheckbox').checked = false;
+  }
+};
+
+// Init
+
+const token = localStorage.getItem('admin_token');
+
+if (!token) { window.location.href = '/index.html'; } else { loadOrders(); }
+
+</script>
+
+
+<script>
+// Mobile: render orders as cards on small screens
+(function() {
+  function isMobile() {
+    return window.innerWidth < 640;
+  }
+  
+  // Override the loadOrders function to add mobile card view
+  const origRender = window.loadOrders;
+  
+  // After orders are loaded, transform table rows into cards on mobile
+  document.addEventListener('DOMContentLoaded', function() {
+    // Observe for table body changes
+    const observer = new MutationObserver(function() {
+      if (isMobile()) {
+        transformToCards();
+      }
+    });
+    const tbody = document.getElementById('ordersBody');
+    if (tbody) observer.observe(tbody, { childList: true, subtree: true });
+  });
+  
+  function transformToCards() {
+    const rows = document.querySelectorAll('#ordersBody tr');
+    rows.forEach(function(row) {
+      if (row.querySelector('.empty-state') || row.querySelector('.loading')) return;
+      if (row.classList.contains('order-card')) return;
+      row.classList.add('order-card');
+      
+      const cells = row.querySelectorAll('td');
+      if (cells.length < 11) return;
+      
+      // Build card content from table cells
+      const orderLink = cells[1].querySelector('a');
+      const orderId = orderLink ? orderLink.textContent : cells[1].textContent.trim();
+      const customer = cells[2].textContent.trim();
+      const phone = cells[3].textContent.trim();
+      const amount = cells[4].textContent.trim();
+      const payment = cells[5].innerHTML;
+      const status = cells[6].innerHTML;
+      const spin = cells[7].innerHTML;
+      const reward = cells[8].textContent.trim();
+      const date = cells[9].textContent.trim();
+      const action = cells[10].innerHTML;
+      
+      row.innerHTML = '<td colspan="11"><div class="order-card-inner">' +
+        '<div class="order-card-header">' +
+          '<span class="order-card-id">' + orderId + '</span>' +
+          '<span class="order-card-status">' + status + '</span>' +
+        '</div>' +
+        '<div class="order-card-body">' +
+          '<div class="order-card-row"><span class="label">Customer</span><strong>' + customer + '</strong></div>' +
+          '<div class="order-card-row"><span class="label">Phone</span>' + phone + '</div>' +
+          '<div class="order-card-row"><span class="label">Amount</span><strong>' + amount + '</strong></div>' +
+          '<div class="order-card-row"><span class="label">Payment</span>' + payment + '</div>' +
+          '<div class="order-card-row"><span class="label">Spin</span>' + spin + '</div>' +
+          '<div class="order-card-row"><span class="label">Reward</span>' + reward + '</div>' +
+          '<div class="order-card-row"><span class="label">Date</span>' + date + '</div>' +
+        '</div>' +
+        '<div class="order-card-footer">' + action + '</div>' +
+      '</div></td>';
+    });
+  }
+  
+  // Listen for resize to toggle card/table view
+  let resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      if (isMobile()) {
+        transformToCards();
+      }
+    }, 250);
+  });
+})();
+</script>
+<style>
+@media (max-width: 640px) {
+  #ordersTable thead { display: none; }
+  #ordersTable tbody tr { display: block; margin-bottom: 12px; }
+  #ordersTable tbody tr.order-card td { display: block; padding: 0; border: none; }
+  .order-card-inner {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .order-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .order-card-id {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--primary);
+  }
+  .order-card-status .status { font-size: 10px; padding: 2px 8px; }
+  .order-card-body {
+    padding: 8px 12px;
+  }
+  .order-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+  }
+  .order-card-row .label {
+    color: var(--text2);
+    font-size: 11px;
+  }
+  .order-card-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    text-align: right;
+  }
+  .order-card-footer .btn { font-size: 12px; padding: 6px 14px; }
+}
+</style>
+</body>
+
+</html>

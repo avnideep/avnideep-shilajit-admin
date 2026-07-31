@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytics — Avnideep Admin</title>
+<link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/api.js"></script>
+<script src="/js/mobile-menu.js"></script>
+<script src="/js/pwa.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .chart-container { position: relative; height: 260px; max-width: 100%; margin-top: 10px; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .chart-card .sub { font-size: 11px; color: var(--text2); margin-bottom: 12px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .stat-value { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  .stat-trend { font-size: 11px; margin-top: 4px; }
+  .stat-trend.up { color: var(--success); }
+  .stat-trend.down { color: var(--danger); }
+  .mini-table { width: 100%; font-size: 12px; }
+  .mini-table th { font-size: 10px; padding: 6px 8px; }
+  .mini-table td { padding: 6px 8px; }
+  .bar-cell { display: flex; align-items: center; gap: 8px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--primary); transition: width .5s; }
+  @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+
+<style>
+@media (max-width: 640px) {
+  .two-col { grid-template-columns: 1fr; }
+  .analytics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chart-container { min-height: 200px; height: auto; }
+  .chart-container canvas { max-width: 100% !important; height: auto !important; }
+}
+@media (max-width: 480px) {
+  .analytics-grid { grid-template-columns: 1fr; }
+}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><h2>Avnideep</h2><small>Admin Panel</small></div>
+    <div class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a href="orders.html"><span class="icon">📋</span><span>Orders</span></a>
+      <a href="analytics.html" class="active"><span class="icon">📈</span><span>Analytics</span></a>
+      <a href="payment-settings.html"><span class="icon">💳</span><span>Payment</span></a>
+      <a href="seo.html"><span class="icon">🔍</span><span>SEO</span></a>
+    </div>
+    <button id="installAppBtn" onclick="installApp()" style="display:none;margin:4px 12px 8px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-height:44px;align-items:center;gap:8px;justify-content:center;" class="install-app-btn">📲 Install App</button>
+        <div class="logout-btn"><button onclick="handleLogout()">🚪 Logout</button></div>
+  </nav>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div><h1>Analytics</h1><p>Track performance and customer insights</p></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('today')">Today</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('week')">Week</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('month')">Month</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('quarter')">Quarter</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('year')">Year</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics('all')">All Time</button>
+        <button class="btn btn-primary btn-sm" onclick="loadAnalytics(currentPeriod)">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="analytics-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-icon blue">📦</div><div class="stat-body"><div class="stat-value" id="statOrders">—</div><div class="stat-label">Orders</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-body"><div class="stat-value" id="statRevenue">—</div><div class="stat-label">Revenue</div></div></div>
+      <div class="stat-card"><div class="stat-icon purple">👁️</div><div class="stat-body"><div class="stat-value" id="statPageViews">—</div><div class="stat-label">Page Views</div></div></div>
+      <div class="stat-card"><div class="stat-icon gold">📈</div><div class="stat-body"><div class="stat-value" id="statConversion">—</div><div class="stat-label">Conversion Rate</div></div></div>
+    </div>
+
+    <!-- COD vs Online -->
+    <div class="analytics-grid" id="codGrid" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
+      <div class="stat-card"><div class="stat-icon green">💵</div><div class="stat-body"><div class="stat-value" id="statCODOrders">—</div><div class="stat-label">COD Orders</div><div class="stat-trend" id="statCODRevenue" style="font-size:11px;color:var(--text2)">—</div></div></div>
+      <div class="stat-card"><div class="stat-icon blue">💳</div><div class="stat-body"><div class="stat-value" id="statOnlineOrders">—</div><div class="stat-label">Online Payments</div><div class="stat-trend" id="statOnlineRevenue" style="font-size:11px;color:var(--text2)">—</div></div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="two-col">
+      <!-- Orders over time -->
+      <div class="chart-card">
+        <h3>📈 Orders Over Time</h3>
+        <div class="sub">Last 30 days</div>
+        <div class="chart-container"><canvas id="ordersChart"></canvas></div>
+      </div>
+
+      <!-- Payment methods -->
+      <div class="chart-card">
+        <h3>💳 Payment Methods</h3>
+        <div class="sub">COD vs Online split</div>
+        <div class="chart-container"><canvas id="paymentChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- UTM + Devices + Browsers + Top States -->
+    <div class="two-col" style="margin-top:0">
+      <!-- UTM Sources -->
+      <div class="chart-card">
+        <h3>🔗 UTM Sources</h3>
+        <div class="sub">Top traffic sources</div>
+        <div class="table-wrap"><table class="mini-table" id="utmTable"><thead><tr><th>Source</th><th>Orders</th><th>Revenue</th><th style="width:40%">%</th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Top States -->
+      <div class="chart-card">
+        <h3>📍 Top States</h3>
+        <div class="sub">Orders by location</div>
+        <div class="table-wrap"><table class="mini-table" id="statesTable"><thead><tr><th>State</th><th>Orders</th><th style="width:40%">%</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Browsers + Devices -->
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>🌐 Browsers</h3>
+        <div class="sub">Customer browser usage</div>
+        <div class="table-wrap"><table class="mini-table" id="browserTable"><thead><tr><th>Browser</th><th>Count</th><th style="width:40%">%</th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>📱 Devices</h3>
+        <div class="sub">Mobile vs Desktop vs Tablet</div>
+        <div class="chart-container" style="height:200px"><canvas id="deviceChart"></canvas></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+
+window.handleLogout = logout;
+
+let currentPeriod = 'all';
+let ordersChartInstance = null;
+let paymentChartInstance = null;
+let deviceChartInstance = null;
+
+async function loadAnalytics(period) {
+  currentPeriod = period;
+  document.getElementById('statsGrid').style.opacity = '0.5';
+
+  try {
+    const data = await getAnalytics(period);
+    const t = data.totals || {};
+
+    document.getElementById('statOrders').textContent = (t.orders || 0).toLocaleString('en-IN');
+    document.getElementById('statRevenue').textContent = '₹' + (t.revenue || 0).toLocaleString('en-IN');
+    document.getElementById('statPageViews').textContent = (t.page_views || 0).toLocaleString('en-IN');
+    document.getElementById('statConversion').textContent = (t.conversion_rate || 0) + '%';
+
+    // COD vs Online
+    const codData = data.cod_vs_online || [];
+    let codOrders = 0, codRev = 0, onlineOrders = 0, onlineRev = 0;
+    for (const r of codData) {
+      if (r.type === 'cod') { codOrders = r.count; codRev = r.revenue; }
+      else { onlineOrders = r.count; onlineRev = r.revenue; }
+    }
+    document.getElementById('statCODOrders').textContent = codOrders.toLocaleString('en-IN');
+    document.getElementById('statCODRevenue').textContent = '₹' + (codRev || 0).toLocaleString('en-IN') + ' revenue';
+    document.getElementById('statOnlineOrders').textContent = onlineOrders.toLocaleString('en-IN');
+    document.getElementById('statOnlineRevenue').textContent = '₹' + (onlineRev || 0).toLocaleString('en-IN') + ' revenue';
+
+    // Chart: Orders over time
+    const chartData = data.chart || [];
+    const labels = chartData.map(r => {
+      const d = new Date(r.date);
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    });
+    const orderCounts = chartData.map(r => r.orders || 0);
+
+    if (ordersChartInstance) ordersChartInstance.destroy();
+    const ctx1 = document.getElementById('ordersChart').getContext('2d');
+    ordersChartInstance = createBarChart(ctx1, labels, orderCounts, 'Orders', '#f59e0b', '#f59e0b');
+
+    // Chart: Payment methods (doughnut)
+    const payLabels = ['COD', 'Online'];
+    const payCounts = [codOrders, onlineOrders];
+    if (paymentChartInstance) paymentChartInstance.destroy();
+    const ctx2 = document.getElementById('paymentChart').getContext('2d');
+    paymentChartInstance = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: payLabels,
+        datasets: [{ data: payCounts, backgroundColor: ['#f59e0b', '#3b82f6'], borderWidth: 2, borderColor: '#1a1a1f' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#999', padding: 12, font: { size: 11 } } } } }
+    });
+
+    // Chart: Devices
+    const devices = data.devices || {};
+    const deviceLabels = Object.keys(devices);
+    const deviceCounts = Object.values(devices);
+    if (deviceChartInstance) deviceChartInstance.destroy();
+    const ctx3 = document.getElementById('deviceChart').getContext('2d');
+    deviceChartInstance = new Chart(ctx3, {
+      type: 'doughnut',
+      data: {
+        labels: deviceLabels.length ? deviceLabels : ['No data'],
+        datasets: [{ data: deviceLabels.length ? deviceCounts : [1], backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'], borderWidth: 2, borderColor: '#1a1a1f' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#999', padding: 10, font: { size: 11 } } } } }
+    });
+
+    // UTM Table
+    const utmData = data.utm_sources || [];
+    const utmTotal = utmData.reduce((s, r) => s + (r.count || 0), 0) || 1;
+    const utmBody = document.getElementById('utmTable').querySelector('tbody');
+    utmBody.innerHTML = utmData.length
+      ? utmData.map(r => '<tr><td><strong>' + (r.utm_source || 'direct') + '</strong></td><td>' + r.count + '</td><td>₹' + (r.revenue || 0).toLocaleString('en-IN') + '</td><td><div class="bar-cell"><div class="bar" style="width:' + ((r.count / utmTotal) * 100).toFixed(0) + '%"></div>' + ((r.count / utmTotal) * 100).toFixed(1) + '%</div></td></tr>').join('')
+      : '<tr><td colspan="4"><div class="empty-state" style="padding:10px">No UTM data</div></td></tr>';
+
+    // States Table
+    const stateData = data.top_states || [];
+    const stateTotal = stateData.reduce((s, r) => s + (r.count || 0), 0) || 1;
+    const stateBody = document.getElementById('statesTable').querySelector('tbody');
+    stateBody.innerHTML = stateData.length
+      ? stateData.map(r => '<tr><td><strong>' + r.state + '</strong></td><td>' + r.count + '</td><td><div class="bar-cell"><div class="bar" style="width:' + ((r.count / stateTotal) * 100).toFixed(0) + '%"></div>' + ((r.count / stateTotal) * 100).toFixed(1) + '%</div></td></tr>').join('')
+      : '<tr><td colspan="3"><div class="empty-state" style="padding:10px">No location data</div></td></tr>';
+
+    // Browser Table
+    const browsers = data.browsers || {};
+    const browserEntries = Object.entries(browsers).sort((a, b) => b[1] - a[1]);
+    const browserTotal = browserEntries.reduce((s, [, c]) => s + c, 0) || 1;
+    const browserBody = document.getElementById('browserTable').querySelector('tbody');
+    browserBody.innerHTML = browserEntries.length
+      ? browserEntries.map(([name, count]) => '<tr><td><strong>' + name + '</strong></td><td>' + count + '</td><td><div class="bar-cell"><div class="bar" style="width:' + ((count / browserTotal) * 100).toFixed(0) + '%"></div>' + ((count / browserTotal) * 100).toFixed(1) + '%</div></td></tr>').join('')
+      : '<tr><td colspan="3"><div class="empty-state" style="padding:10px">No browser data</div></td></tr>';
+
+    document.getElementById('statsGrid').style.opacity = '1';
+  } catch(e) {
+    document.getElementById('statsGrid').style.opacity = '1';
+    document.getElementById('statsGrid').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><h3>Failed to load</h3><p>' + e.message + '</p></div>';
+  }
+}
+
+function createBarChart(ctx, labels, data, label, color, borderColor) {
+  return new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label, data, backgroundColor: color, borderColor, borderWidth: 1, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#666', font: { size: 10 }, maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+window.loadAnalytics = loadAnalytics;
+
+// Init
+const token = localStorage.getItem('admin_token');
+if (!token) { window.location.href = '/index.html'; } else { loadAnalytics('all'); }
+</script>
+
+</body>
+</html>

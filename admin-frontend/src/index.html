@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Login — Avnideep Ayurveda</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+.login-card .brand { text-align: center; margin-bottom: 24px; }
+.login-card .brand .logo { width: 56px; height: 56px; background: linear-gradient(135deg,#f59e0b,#d97706); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #000; margin-bottom: 10px; }
+.login-card .brand h1 { font-size: 20px; }
+.login-card .brand p { font-size: 12px; color: var(--text2); }
+.login-card .form-group:last-of-type { margin-bottom: 20px; }
+.login-card .btn { width: 100%; padding: 12px; font-size: 15px; justify-content: center; }
+.login-card .footer-text { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text2); }
+/* Install banner on login page */
+#installBanner {
+  display: none;
+  position: fixed; bottom: 20px; left: 20px; right: 20px;
+  background: var(--bg2); border: 1px solid var(--primary);
+  border-radius: 14px; padding: 16px;
+  z-index: 9999; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  max-width: 400px; margin: 0 auto;
+}
+#installBanner.show { display: block; }
+#installBanner p { font-size: 13px; color: var(--text); margin-bottom: 12px; }
+#installBanner .install-banner-actions { display: flex; gap: 8px; }
+#installBanner .install-banner-actions .btn { flex: 1; min-height: 40px; font-size: 13px; }
+@media (max-width: 480px) {
+  #installBanner { left: 12px; right: 12px; bottom: 12px; padding: 14px; }
+}
+</style>
+<style>
+@media (max-width: 640px) {
+  .login-card { padding: 24px 20px; margin: 0 16px; width: calc(100% - 32px); max-width: 360px; }
+  .login-card h1 { font-size: 22px; }
+  .login-card .form-control { font-size: 16px; min-height: 44px; }
+  .login-card .btn { font-size: 16px; min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .login-card { padding: 20px 16px; }
+  .login-card h1 { font-size: 20px; }
+  .login-card .form-control { font-size: 15px; min-height: 40px; }
+}
+@media (max-width: 360px) {
+  .login-card { padding: 16px 12px; }
+  .login-card h1 { font-size: 18px; }
+}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Avnideep Admin">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.svg">
+<link rel="apple-touch-startup-image" href="/icons/icon-512x512.png">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="logo">A</div>
+      <h1>Admin Panel</h1>
+      <p>Avnideep Ayurveda — Order Management</p>
+    </div>
+    <div class="alert alert-error" id="loginError"></div>
+    <form id="loginForm" onsubmit="return handleLogin(event)">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" class="form-control" placeholder="admin@avnideepayurveda.in" required autocomplete="email" autofocus>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+    </form>
+    <div class="footer-text">Authorized personnel only</div>
+  </div>
+</div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/pwa.js"></script>
+    <script>
+window.handleLogin = async function(e) {
+  e.preventDefault();
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+
+  err.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    await login(email, password);
+    window.location.href = '/dashboard.html';
+  } catch (e) {
+    err.textContent = e.message || 'Login failed. Check your credentials.';
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+  return false;
+};
+
+// Redirect if already logged in
+(async function() {
+  const token = localStorage.getItem('admin_token');
+  if (token) {
+    try {
+      const valid = await verifyToken();
+      if (valid) window.location.href = '/dashboard.html';
+    } catch(e) {}
+  }
+})();
+    </script>
+<script>
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+      console.log('SW registered: ' + reg.scope);
+    }).catch(function(err) {
+      console.log('SW registration failed: ' + err);
+    });
+  });
+}
+</script>
+</body>
+</html>

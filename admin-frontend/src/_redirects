@@ -1,0 +1,9 @@
+# Static assets (must come before catch-all)
+/js/*  /js/:splat  200
+/css/*  /css/:splat  200
+/favicon.ico  /favicon.ico  200
+/manifest.webmanifest  /manifest.webmanifest  200
+/assets/*  /assets/:splat  200
+
+# SPA - all other routes serve index.html
+/*  /index.html  200
