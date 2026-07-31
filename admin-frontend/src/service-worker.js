@@ -1,23 +1,22 @@
-// Avnideep Admin PWA Service Worker v5 - Advanced
+// Avnideep Admin PWA Service Worker v6 - Pages redirect-safe
 // Cache names
-var CACHE = 'avnideep-admin-v5';
-var STATIC_CACHE = 'avnideep-admin-static-v5';
-var API_CACHE = 'avnideep-admin-api-v5';
-var FONT_CACHE = 'avnideep-admin-fonts-v5';
-var IMMUTABLE_CACHE = 'avnideep-admin-immutable-v5';
+var CACHE = 'avnideep-admin-v6';
+var STATIC_CACHE = 'avnideep-admin-static-v6';
+var API_CACHE = 'avnideep-admin-api-v6';
+var FONT_CACHE = 'avnideep-admin-fonts-v6';
+var IMMUTABLE_CACHE = 'avnideep-admin-immutable-v6';
 
 // Assets to pre-cache on install
 var STATIC_ASSETS = [
   '/',
-  '/offline.html',
-  '/index.html',
-  '/dashboard.html',
-  '/orders.html',
-  '/order-detail.html',
-  '/rewards.html',
-  '/analytics.html',
-  '/payment-settings.html',
-  '/seo.html',
+  '/offline',
+  '/dashboard',
+  '/orders',
+  '/order-detail',
+  '/rewards',
+  '/analytics',
+  '/payment-settings',
+  '/seo',
   '/css/styles.css',
   '/js/api.js',
   '/js/mobile-menu.js',
@@ -63,9 +62,8 @@ self.addEventListener('activate', function(event) {
           })
         );
       }),
-      // Enable navigation preload
-      self.registration && self.registration.navigationPreload ? 
-        self.registration.navigationPreload.enable() : Promise.resolve(),
+      // Navigation preload intentionally disabled - we always respond
+      // via respondWith() with our own fetch/cache logic.
       // Take control of all clients immediately
       self.clients.claim()
     ])
@@ -87,8 +85,7 @@ function isImmutable(url) {
 
 // Helper: is navigation request
 function isNavigation(url, request) {
-  return request.mode === 'navigate' || 
-         (request.method === 'GET' && url.pathname.endsWith('.html'));
+  return request.mode === 'navigate';
 }
 
 // Helper: send message to all clients
@@ -138,7 +135,7 @@ async function networkFirst(request, cacheName, timeoutMs) {
     
     // For navigation that fails, show offline page
     if (isNavigation(url, request)) {
-      var offlinePage = await caches.match('/offline.html');
+      var offlinePage = await caches.match('/offline');
       if (offlinePage) return offlinePage;
       return new Response('Offline', { status: 503 });
     }
@@ -178,7 +175,7 @@ async function staleWhileRevalidate(request) {
     }
     return response;
   }).catch(function() {
-    return cached || caches.match('/offline.html');
+    return cached || caches.match('/offline');
   });
   
   return cached || fetchPromise;
@@ -193,6 +190,11 @@ self.addEventListener('fetch', function(event) {
   
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
+  
+  // Skip .html URLs - Cloudflare Pages 308-redirects them to clean URLs
+  // (e.g. /dashboard.html -> /dashboard). Let the browser follow the
+  // redirect, then we intercept the clean navigation instead.
+  if (url.pathname.endsWith('.html')) return;
   
   // Handle API requests - network first with longer timeout
   if (isApiRequest(url)) {
